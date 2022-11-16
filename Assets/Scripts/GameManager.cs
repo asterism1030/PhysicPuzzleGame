@@ -7,7 +7,12 @@ public class GameManager : MonoBehaviour
     public Dongle lastDongle;
     public GameObject donglePrefab;
     public Transform dongleGroup;
+    public GameObject effectPrefab;
+    public Transform effectGroup;
     
+    public int score;
+    public int maxLevel = 2;
+    public bool isOver;
 
     void Awake()
     {
@@ -21,16 +26,28 @@ public class GameManager : MonoBehaviour
 
     Dongle GetDongle()
     {
-        GameObject instant = Instantiate(donglePrefab, dongleGroup);
-        Dongle instantDongle = instant.GetComponent<Dongle>();
+        // 이펙트 생성
+        GameObject instantEffectObj = Instantiate(effectPrefab, effectGroup);
+        ParticleSystem instantEffect = instantEffectObj.GetComponent<ParticleSystem>();
+
+        // 동글 생성
+        GameObject instantDongleObj = Instantiate(donglePrefab, dongleGroup);
+        Dongle instantDongle = instantDongleObj.GetComponent<Dongle>();
+        instantDongle.effect = instantEffect;
+
         return instantDongle;
     }
 
     void NextDongle()
     {
+        if(isOver) {
+            return;
+        }
+
         Dongle newDongle = GetDongle();
         lastDongle = newDongle;
-        lastDongle.level = Random.Range(0, 8);
+        lastDongle.manager = this;
+        lastDongle.level = Random.Range(0, maxLevel);
         lastDongle.gameObject.SetActive(true);
 
         StartCoroutine(WaitNext());
@@ -64,5 +81,35 @@ public class GameManager : MonoBehaviour
 
         lastDongle.Drop();
         lastDongle = null;
+    }
+
+    public void GameOver()
+    {
+        Debug.Log("GameOver");
+        
+        if(isOver) {
+            return;
+        }
+
+        isOver = true;
+
+        StartCoroutine(GameOverRoutine());
+    }
+
+    IEnumerator GameOverRoutine()
+    {
+        // 1. 장면 안에 활성화 되있는 모든 동글 가져옴
+        Dongle[] dongles = FindObjectsOfType<Dongle>();
+
+        // 2. 지우기 전에 모든 동글의 물리효과 비활성화
+        for(int index = 0; index < dongles.Length; index++) {
+            dongles[index].rigid.simulated = false;
+        }
+
+        // 3. 1번의 목록을 하나씩 접근해서 지움
+        for(int index = 0; index < dongles.Length; index++) {
+            dongles[index].Hide(Vector3.up * 100); // 게임상에서 나올수 없는 매우 큰값
+            yield return new WaitForSeconds(0.1f);
+        }
     }
 }
